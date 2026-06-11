@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="da" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slægtens Rødder - Fælles Stamtræsportal</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts (Plus Jakarta Sans til et rent nordisk look) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom CSS til custom animations og scrollbar-styling -->
+  <style>
+    @keyframes pulseHighlight {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+        transform: scale(1.04);
+      }
+    }
+    .animate-pulse-custom {
+      animation: pulseHighlight 1.5s infinite ease-in-out;
+    }
+    /* Tynd og moderne scrollbar til stamtræerne */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased">
+
+  <div id="app" class="flex flex-col min-h-screen">
+    
+    <!-- Top-bjælke: Status på database-forbindelse -->
+    <div v-if="!isFirebaseConnected" class="bg-amber-50 border-b border-amber-200 py-2 px-4 transition-all duration-300">
+      <div class="max-w-7xl mx-auto flex items-center justify-center flex-wrap gap-2 text-xs sm:text-sm text-amber-800 font-medium">
+        <svg class="w-4.5 h-4.5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Kører i lokal tilstand (LocalStorage). Indsæt dine Firebase-oplysninger i koden for at aktivere global sky-synkronisering.</span>
+      </div>
+    </div>
+    <div v-else class="bg-emerald-50 border-b border-emerald-100 py-2 px-4 transition-all duration-300">
+      <div class="max-w-7xl mx-auto flex items-center justify-center flex-wrap gap-2 text-xs sm:text-sm text-emerald-800 font-medium">
+        <svg class="w-4.5 h-4.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Forbundet til live cloud-database. Ændringer synkroniseres globalt i realtid!</span>
+      </div>
+    </div>
+
+    <!-- Sticky Header & Navigation -->
+    <header class="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-2 cursor-pointer" @click="currentView = 'home'">
+          <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <span class="font-bold text-slate-900 tracking-tight text-lg">Slægtsportal</span>
+        </div>
+        <nav class="flex space-x-1 sm:space-x-2">
+          <button 
+            @click="currentView = 'home'"
+            :class="currentView === 'home' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+          >
+            Hjem
+          </button>
+          <button 
+            @click="currentView = 'malte'"
+            :class="currentView === 'malte' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/50'"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+          >
+            Maltes Stamtræ
+          </button>
+          <button 
+            @click="currentView = 'christiane'"
+            :class="currentView === 'christiane' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/50'"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+          >
+            Christianes Stamtræ
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Hovedindhold -->
+    <main class="flex-grow">
+      
+      <!-- Hjem / Velkomstside -->
+      <section v-if="currentView === 'home'" class="fade-in">
+        <!-- Hero Sektion -->
+        <div class="relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-800 to-slate-950 py-24 sm:py-32 text-white">
+          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]"></div>
+          <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-6">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Fælles Slægtshistorie
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6">
+              Find og bevar dine <span class="text-emerald-400">fælles rødder</span>
+            </h1>
+            <p class="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+              Velkommen til vores familieportal. Her kan vi sammen stykke historien sammen i realtid. Tilføj, rediger og udforsk generationerne i de to familieslægter.
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+              <button @click="currentView = 'malte'" class="inline-flex items-center justify-center px-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-2xl shadow-lg transition-all hover:-translate-y-0.5">
+                Udforsk Maltes Stamtræ
+              </button>
+              <button @click="currentView = 'christiane'" class="inline-flex items-center justify-center px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold rounded-2xl border border-slate-700 transition-all hover:-translate-y-0.5">
+                Udforsk Christianes Stamtræ
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Om Sektion -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div class="grid md:grid-cols-3 gap-8">
+            <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Samarbejde i realtid</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Når du tilføjer eller ændrer en person, opdateres ændringerne live for alle besøgende på tværs af computere, tablets og mobiltelefoner.
+              </p>
+            </div>
+            <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Intelligent søgning</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Find nemt et familiemedlem i store stamtræer. Søgefunktionen ruller automatisk hen til personen og fremhæver dem visuelt.
+              </p>
+            </div>
+            <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Intuitiv redigering</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Tilføj børn direkte til en forælder eller fjern personer med ét klik. Systemet sikrer, at relationerne bevares og rykkes korrekt op.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Interaktive Stamtræer -->
+      <section v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 fade-in">
+        
+        <!-- Sidetitel & Kontrolbar -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-6 border-b border-slate-200">
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">
+              {{ currentView === 'malte' ? 'Maltes Stamtræ' : 'Christianes Stamtræ' }}
+            </h2>
+            <p class="text-sm text-slate-500 mt-1">
+              {{ activeTree.length }} registrerede slægtninge i databasen
+            </p>
+          </div>
+
+          <!-- Søg og Tilføj kontrolgruppe -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <!-- Søgebar -->
+            <form @submit.prevent="searchPerson" class="relative flex items-center">
+              <input 
+                type="text" 
+                v-model="searchQuery" 
+                placeholder="Søg efter navn..." 
+                class="w-full sm:w-64 pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm transition-all"
+              />
+              <div class="absolute left-3.5 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </div>
+              <button type="submit" class="hidden"></button>
+            </form>
+
+            <!-- Knappen tilføj person (Uden forældretilknytning som udgangspunkt) -->
+            <button 
+              @click="openAddModal()" 
+              class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-2xl shadow-sm text-sm transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Tilføj Stamfader / Barn
+            </button>
+          </div>
+        </div>
+
+        <!-- Visuelt Stamtræ Container (Scrollbart til store træer) -->
+        <div class="overflow-auto w-full max-h-[70vh] border border-slate-200/60 rounded-3xl bg-slate-50/50 p-6 md:p-12">
+          <!-- Centraliserer træ-strukturen horisontalt i visningen, tillader scroll hvis træet er bredere -->
+          <div class="min-w-max flex justify-center py-4 px-12">
+            
+            <!-- Hvis træet er helt tomt -->
+            <div v-if="rootNodes.length === 0" class="text-center py-12">
+              <svg class="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <p class="text-slate-500 text-sm">Der er ikke tilføjet nogen personer til dette træ endnu.</p>
+              <button @click="openAddModal()" class="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-500">
+                Opret den første person &rarr;
+              </button>
+            </div>
+
+            <!-- Recursiv visning af stamtræets rødder -->
+            <div v-else class="flex gap-16">
+              <tree-node 
+                v-for="root in rootNodes" 
+                :key="root.id" 
+                :node="root" 
+                :all-nodes="activeTree"
+                :highlighted-id="highlightedId"
+              ></tree-node>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- Tilføj Medlem Modal -->
+    <div v-if="isAddModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <!-- Backdrop med blur -->
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="closeAddModal"></div>
+      
+      <!-- Modal Box -->
+      <div class="relative bg-white rounded-3xl p-6 sm:p-8 shadow-2xl max-w-md w-full border border-slate-100 transform transition-all">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-slate-900">Tilføj til stamtræet</h3>
+          <button @click="closeAddModal" class="text-slate-400 hover:text-slate-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        
+        <form @submit.prevent="addPerson" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Navn</label>
+            <input 
+              type="text" 
+              v-model="newPerson.name" 
+              required 
+              placeholder="F.eks. Carl Hansen" 
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Alder</label>
+            <input 
+              type="number" 
+              v-model="newPerson.age" 
+              required 
+              min="0" 
+              max="150" 
+              placeholder="F.eks. 34" 
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Forælder / Relation</label>
+            <select 
+              v-model="newPerson.parentId" 
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm bg-white"
+            >
+              <option value="">Ingen (Opret som nyt stamfader/stammoder-rod)</option>
+              <option v-for="person in activeTree" :key="person.id" :value="person.id">
+                {{ person.name }} ({{ person.age }} år)
+              </option>
+            </select>
+          </div>
+          
+          <div class="flex gap-3 pt-4">
+            <button 
+              type="button" 
+              @click="closeAddModal" 
+              class="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-sm transition-all"
+            >
+              Annuller
+            </button>
+            <button 
+              type="submit" 
+              class="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl text-sm shadow-md transition-all"
+            >
+              Gem familiemedlem
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Fodnote / Footer -->
+    <footer class="bg-white border-t border-slate-200 py-8 text-center text-xs text-slate-400 mt-auto">
+      <div class="max-w-7xl mx-auto px-4">
+        <p>&copy; Slægtsportal. Udviklet med Vue.js og Firebase Realtime Database.</p>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- Firebase CDN Moduler (Type="module" for moderne import-understøttelse) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // ==========================================
+    // DATABASENS INDSTILLINGER (FIREBASE CONFIG)
+    // Erstat værdierne nedenfor for global synkronisering
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Finder ud af om Firebase er konfigureret rigtigt af brugeren
+    const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+    let db = null;
+
+    if (isFirebaseConfigured) {
+      try {
+        const appInstance = initializeApp(firebaseConfig);
+        db = getDatabase(appInstance);
+      } catch (e) {
+        console.error("Firebase initialiseringsfejl:", e);
+      }
+    }
+
+    // Default fallback mock-data til stamtræerne hvis database er tom
+    const defaultMalteTree = [
+      { id: "m1", name: "Jens Hansen", age: 84, parentId: null },
+      { id: "m2", name: "Thomas Hansen", age: 52, parentId: "m1" },
+      { id: "m3", name: "Malte Hansen", age: 24, parentId: "m2" },
+      { id: "m4", name: "Sofie Hansen", age: 21, parentId: "m2" },
+      { id: "m5", name: "Marie Hansen", age: 48, parentId: "m1" },
+      { id: "m6", name: "Lucas Hansen", age: 18, parentId: "m5" }
+    ];
+
+    const defaultChristianeTree = [
+      { id: "c1", name: "Karen Nielsen", age: 81, parentId: null },
+      { id: "c2", name: "Henrik Nielsen", age: 54, parentId: "c1" },
+      { id: "c3", name: "Christiane Nielsen", age: 26, parentId: "c2" },
+      { id: "c4", name: "Emma Nielsen", age: 22, parentId: "c2" }
+    ];
+
+    const { createApp, computed } = Vue;
+
+    const app = createApp({
+      data() {
+        return {
+          currentView: 'home',
+          searchQuery: '',
+          highlightedId: null,
+          isAddModalOpen: false,
+          isFirebaseConnected: isFirebaseConfigured && db !== null,
+          
+          newPerson: {
+            name: '',
+            age: null,
+            parentId: ''
+          },
+          
+          malteTree: [],
+          christianeTree: []
+        }
+      },
+      // Give child components access to mutations & query states
+      provide() {
+        return {
+          deletePerson: this.deletePerson,
+          openAddModal: this.openAddModal,
+          getHighlightedId: () => this.highlightedId
+        }
+      },
+      computed: {
+        activeTree() {
+          return this.currentView === 'malte' ? this.malteTree : this.christianeTree;
+        },
+        rootNodes() {
+          return this.activeTree.filter(n => !n.parentId);
+        }
+      },
+      mounted() {
+        this.initializeData();
+      },
+      methods: {
+        // Henter data enten fra Firebase eller LocalStorage
+        initializeData() {
+          if (this.isFirebaseConnected) {
+            // Hent live data for Maltes Træ
+            onValue(ref(db, 'maltes-tree'), (snapshot) => {
+              const val = snapshot.val();
+              if (val) {
+                this.malteTree = val;
+              } else {
+                this.malteTree = [...defaultMalteTree];
+                set(ref(db, 'maltes-tree'), defaultMalteTree);
+              }
+            });
+
+            // Hent live data for Christianes Træ
+            onValue(ref(db, 'christianes-tree'), (snapshot) => {
+              const val = snapshot.val();
+              if (val) {
+                this.christianeTree = val;
+              } else {
+                this.christianeTree = [...defaultChristianeTree];
+                set(ref(db, 'christianes-tree'), defaultChristianeTree);
+              }
+            });
+          } else {
+            // LocalStorage fallback
+            const localMalte = localStorage.getItem('maltes-tree');
+            this.malteTree = localMalte ? JSON.parse(localMalte) : [...defaultMalteTree];
+            if (!localMalte) localStorage.setItem('maltes-tree', JSON.stringify(defaultMalteTree));
+
+            const localChristiane = localStorage.getItem('christianes-tree');
+            this.christianeTree = localChristiane ? JSON.parse(localChristiane) : [...defaultChristianeTree];
+            if (!localChristiane) localStorage.setItem('christianes-tree', JSON.stringify(defaultChristianeTree));
+          }
+        },
+
+        // Gemmer ændringer i aktivt datalager
+        saveTree(treeKey, data) {
+          if (this.isFirebaseConnected) {
+            set(ref(db, treeKey), data);
+          } else {
+            localStorage.setItem(treeKey, JSON.stringify(data));
+          }
+        },
+
+        // Åbn dialog for oprettelse
+        openAddModal(parentId = '') {
+          this.newPerson.parentId = parentId;
+          this.isAddModalOpen = true;
+        },
+
+        closeAddModal() {
+          this.isAddModalOpen = false;
+          this.newPerson.name = '';
+          this.newPerson.age = null;
+          this.newPerson.parentId = '';
+        },
+
+        // Tilføj person
+        addPerson() {
+          if (!this.newPerson.name || this.newPerson.age === null) return;
+
+          const newMember = {
+            id: 'p-' + Date.now(),
+            name: this.newPerson.name.trim(),
+            age: parseInt(this.newPerson.age, 10),
+            parentId: this.newPerson.parentId || null
+          };
+
+          const targetTreeKey = this.currentView === 'malte' ? 'maltes-tree' : 'christianes-tree';
+          
+          if (this.currentView === 'malte') {
+            this.malteTree.push(newMember);
+            this.saveTree(targetTreeKey, this.malteTree);
+          } else {
+            this.christianeTree.push(newMember);
+            this.saveTree(targetTreeKey, this.christianeTree);
+          }
+
+          this.closeAddModal();
+        },
+
+        // Slet person: Fremmer eventuelle børn ét niveau op (re-pasting til personens forælder)
+        deletePerson(person) {
+          if (confirm(`Vil du slette ${person.name} fra stamtræet? Eventuelle børn rykkes automatisk et niveau op.`)) {
+            const targetTreeKey = this.currentView === 'malte' ? 'maltes-tree' : 'christianes-tree';
+            let activeTreeCopy = [...this.activeTree];
+            
+            // Re-assigner børn til den slettede persons egen forælder (undgår "forældreløse" elementer i hierarkiet)
+            activeTreeCopy.forEach(node => {
+              if (node.parentId === person.id) {
+                node.parentId = person.parentId;
+              }
+            });
+
+            // Fjern selve personen
+            activeTreeCopy = activeTreeCopy.filter(n => n.id !== person.id);
+
+            if (this.currentView === 'malte') {
+              this.malteTree = activeTreeCopy;
+            } else {
+              this.christianeTree = activeTreeCopy;
+            }
+
+            this.saveTree(targetTreeKey, activeTreeCopy);
+          }
+        },
+
+        // Søg og find familiemedlem (scroller og animerer markering)
+        searchPerson() {
+          if (!this.searchQuery.trim()) return;
+
+          const query = this.searchQuery.toLowerCase().trim();
+          const match = this.activeTree.find(p => p.name.toLowerCase().includes(query));
+
+          if (match) {
+            this.highlightedId = match.id;
+
+            // Vent på DOM-rendering, derefter scroll til og fokuser elementet
+            this.$nextTick(() => {
+              const el = document.getElementById('person-' + match.id);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+              }
+            });
+
+            this.searchQuery = '';
+
+            // Fjern highlight efter 4.5 sekunder
+            setTimeout(() => {
+              if (this.highlightedId === match.id) {
+                this.highlightedId = null;
+              }
+            }, 4500);
+          } else {
+            alert(`Søgeresultat: Fandt ingen person ved navn "${this.searchQuery}" i dette træ.`);
+          }
+        }
+      }
+    });
+
+    // Sub-komponent: Tree Node (Rekursiv rendrering af stamtræs-hierarki med flexbox connectors)
+    app.component('tree-node', {
+      props: ['node', 'allNodes', 'highlightedId'],
+      inject: ['deletePerson', 'openAddModal', 'getHighlightedId'],
+      computed: {
+        children() {
+          return this.allNodes.filter(n => n.parentId === this.node.id);
+        }
+      },
+      template: `
+        <div class="flex flex-col items-center relative">
+          
+          <!-- Person-kort -->
+          <div 
+            :id="'person-' + node.id" 
+            class="relative flex flex-col items-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm transition-all duration-300 w-48 text-center"
+            :class="[
+              getHighlightedId() === node.id 
+                ? 'ring-4 ring-emerald-500 ring-offset-2 scale-105 border-transparent shadow-xl animate-pulse-custom z-10' 
+                : 'hover:-translate-y-1 hover:shadow-md hover:border-slate-300'
+            ]"
+          >
+            <!-- Minimalistisk Avatar cirkel -->
+            <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 text-slate-600 flex items-center justify-center font-bold text-base mb-2 select-none">
+              {{ node.name.charAt(0) }}
+            </div>
+            
+            <!-- Information -->
+            <h4 class="font-bold text-slate-900 text-sm truncate w-full">{{ node.name }}</h4>
+            <p class="text-xs text-slate-500 mt-0.5">{{ node.age }} år</p>
+            
+            <!-- Kontrolknapper -->
+            <div class="flex items-center gap-2 mt-3 pt-2.5 border-t border-slate-100 w-full justify-center">
+              <button 
+                @click="openAddModal(node.id)" 
+                class="p-1.5 hover:bg-emerald-50 rounded-xl text-slate-500 hover:text-emerald-600 transition-colors"
+                title="Tilføj barn"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              </button>
+              <button 
+                @click="deletePerson(node)" 
+                class="p-1.5 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-colors"
+                title="Slet person"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Vertikal linje nedadgående til børn -->
+          <div v-if="children.length > 0" class="w-0.5 h-6 bg-slate-300"></div>
+
+          <!-- Række til børnene og dertilhørende linje-connectors -->
+          <div v-if="children.length > 0" class="flex gap-6 relative">
+            <div v-for="(child, idx) in children" :key="child.id" class="flex flex-col items-center relative">
+              
+              <!-- Linje-systemer: Bygger perfekte T-connectors med ren CSS -->
+              <div class="w-full flex h-6 relative">
+                <!-- Venstre vandret linie (usynlig for det første barn) -->
+                <div class="w-1/2 border-t-2 border-slate-300" :class="idx === 0 ? 'border-transparent' : 'border-slate-300'"></div>
+                <!-- Højre vandret linie (usynlig for det sidste barn) -->
+                <div class="w-1/2 border-t-2 border-slate-300" :class="idx === children.length - 1 ? 'border-transparent' : 'border-slate-300'"></div>
+                <!-- Lille stang opad i centrum for at møde forældrenes rødder -->
+                <div class="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-slate-300"></div>
+              </div>
+
+              <!-- Rekursivt kald til tree-node igen -->
+              <tree-node :node="child" :all-nodes="allNodes" :highlighted-id="highlightedId"></tree-node>
+            </div>
+          </div>
+          
+        </div>
+      `
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
